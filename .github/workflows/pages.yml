@@ -1,0 +1,40 @@
+name: Deploy Student Edition
+
+on:
+  push:
+    branches: [main]
+    paths: [Student_Edition.zip, Arduino_Student_Offline.zip, student-links.js, .github/workflows/pages.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: student-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify and extract the student site
+        run: |
+          unzip -tq Student_Edition.zip
+          unzip -tq Arduino_Student_Offline.zip
+          unzip -q Student_Edition.zip -d site
+          test -f site/index.html
+          test ! -e site/presenter.html
+          test "$(find site/sketches -maxdepth 1 -name '*.ino' | wc -l)" -eq 11
+          cp Arduino_Student_Offline.zip site/Arduino_Student_Offline.zip
+          if test -f student-links.js; then cp student-links.js site/src/student-links.js; fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
